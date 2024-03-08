@@ -24,7 +24,8 @@ const int MAX_NAME_LENGTH = 50;
 const int MAX_MESSAGE_LENGTH = 512;
 const int PORT_NUMBER = 2025;
 
-void *client_thread(void *client_socket_fd)
+
+void *client_thread(void *client_socket_fd) // Функция обработки потока клиента
 {
   char client_name[MAX_NAME_LENGTH];
   char encd_msg[MAX_MESSAGE_LENGTH];
@@ -36,7 +37,9 @@ void *client_thread(void *client_socket_fd)
 
   int fd = *(int *)client_socket_fd;
 
-  recv(fd, client_name, sizeof(client_name), 0);
+  recv(fd, client_name, sizeof(client_name), 0); // Получаем имя клиента
+
+  // Отправляем сообщение о входе в чат для всех клиентов
   {
     std::lock_guard<std::mutex> lock(clients_mutex);
     
@@ -46,7 +49,7 @@ void *client_thread(void *client_socket_fd)
       send(client.second, output, sizeof(output), 0);
     }
   }
-
+// Отправляем список активных клиентов новому клиенту
   if (!clients_list.empty()) 
   {
     std::string active_clients;
@@ -81,14 +84,16 @@ void *client_thread(void *client_socket_fd)
     create_enc_msg(active_clients.c_str(), "Server:online", is_are, sizeof(output), output);
     send(fd, output, sizeof(output), 0);
   }
-
+// Добавляем клиента в список
   {
     std::lock_guard<std::mutex> lock(clients_mutex);
     clients_list[std::string(client_name)] = fd;
   }
 
+  // Выводим информацию о клиенте
   std::cout << "Thread ID: " << pthread_self() << " socket_fd: " << fd << " Name: " << client_name << std::endl;
 
+  // Основной цикл обработки сообщений клиента
   while (true) 
   {
     bzero(encd_msg, sizeof(encd_msg));
@@ -97,7 +102,7 @@ void *client_thread(void *client_socket_fd)
     msg.clear();
     bzero(output, sizeof(output));
 
-    int rv = recv(fd, encd_msg, sizeof(encd_msg), 0);
+    int rv = recv(fd, encd_msg, sizeof(encd_msg), 0); // Получаем сообщение от клиента
     
     if (rv == -1) 
     {
@@ -110,11 +115,11 @@ void *client_thread(void *client_socket_fd)
        break;
     }
 
-    dec_msg(encd_msg, sizeof(encd_msg), dest_names, msg_info, msg);
+    dec_msg(encd_msg, sizeof(encd_msg), dest_names, msg_info, msg); // Декодируем сообщение
 
-    if (!dest_names.empty())
+    if (!dest_names.empty()) // Обрабатываем сообщение
     {
-      for (const auto &d_name : dest_names) 
+      for (const auto &d_name : dest_names) // Приватное сообщение
       {
         int dest_socket_desc;
         {
@@ -140,7 +145,7 @@ void *client_thread(void *client_socket_fd)
       }
     } 
     
-    else 
+    else // Публичное сообщение
     {
       {
         std::lock_guard<std::mutex> lock(clients_mutex);
@@ -160,6 +165,7 @@ void *client_thread(void *client_socket_fd)
     }
   }
 
+  // Удаляем клиента из списка при отключении
   {
     std::lock_guard<std::mutex> lock(clients_mutex);
     clients_list.erase(client_name);
@@ -171,6 +177,7 @@ void *client_thread(void *client_socket_fd)
     }
   }
   
+  // Закрываем соединение и завершаем поток
   std::cout << "Closing connection with socket_fd: " << fd << ".  Name: " << client_name << ".  Exiting the thread." << std::endl;
   
   close(fd);
@@ -185,7 +192,7 @@ int main(int argc, char *argv[])
   pthread_t thread[MAX_CLIENTS];
   int client_socket_fd;
 
-  master_socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  master_socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // Создаем TCP сокет
   
   if (master_socket_fd < 0)
   {
@@ -193,38 +200,39 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  if (setsockopt(master_socket_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (const void *)&opt, sizeof(opt)) == -1)
+  if (setsockopt(master_socket_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (const void *)&opt, sizeof(opt)) == -1) // Устанавливаем опции сокета
   {
     std::cerr << "setsockopt" << std::endl;
     return 1;
   }
 
+  // Настраиваем адрес сервера
   bzero((void *)&server_addr, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(PORT_NUMBER);
 
-  if (bind(master_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+  if (bind(master_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) // Привязываем сокет к адресу
   {
     std::cerr << "Cannot bind to port " << PORT_NUMBER << std::endl;
     return 1;
   }
 
-  if (listen(master_socket_fd, MAX_CLIENTS) == -1)
+  if (listen(master_socket_fd, MAX_CLIENTS) == -1) // Ожидаем подключений клиентов
   {
     std::cerr << "Cannot listen" << std::endl;
     return 1;
   }
 
-  std::cout << "Listening socket_fd " << master_socket_fd << " on port " << PORT_NUMBER << "..." << std::endl;
+  std::cout << "Listening socket_fd " << master_socket_fd << " on port " << PORT_NUMBER << "..." << std::endl; // Выводим информацию о прослушиваемом порту
 
-  while (true)
+  while (true) // Бесконечный цикл обработки новых подключений
   {
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
     bzero((void *)&client_addr, sizeof(client_addr));
 
-    client_socket_fd = accept(master_socket_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+    client_socket_fd = accept(master_socket_fd, (struct sockaddr *)&client_addr, &client_addr_len); // Принимаем новое подключение
     
     if (client_socket_fd == -1)
     {
@@ -236,7 +244,7 @@ int main(int argc, char *argv[])
       std::cout << "Incoming connection from: " << inet_ntoa(client_addr.sin_addr) << " on socket_fd: " << client_socket_fd << std::endl;
     }
 
-    pthread_create(&thread[client_socket_fd], nullptr, client_thread, reinterpret_cast<void *>(&client_socket_fd));
+    pthread_create(&thread[client_socket_fd], nullptr, client_thread, reinterpret_cast<void *>(&client_socket_fd)); // Создаем новый поток для обработки подключения
   }
 
     return 0;
