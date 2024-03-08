@@ -24,7 +24,7 @@ void enc_msg(const char *input, char *output, size_t io_buffer_length)
 
   if (is_private)
   {
-    size_t j = 0;
+   //size_t j = 0;
     std::string dest_names;
     
     for (size_t i = 0; i < io_buffer_length; ++i)

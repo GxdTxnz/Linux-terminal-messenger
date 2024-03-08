@@ -14,6 +14,7 @@
 //using namespace std;
 
 std::map<std::string, int> clients_list;
+std::mutex clients_mutex;
 pthread_mutex_t clients_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *client_thread(void *);
@@ -176,7 +177,67 @@ void *client_thread(void *client_socket_fd)
   pthread_exit(nullptr);
 }
 
-int maint(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
+  int master_socket_fd;
+  struct sockaddr_in server_addr;
+  const int opt = 1;
+  pthread_t thread[MAX_CLIENTS];
+  int client_socket_fd;
 
+  master_socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  
+  if (master_socket_fd < 0)
+  {
+    std::cerr << "Cannot open tcp socket" << std::endl;
+    return 1;
+  }
+
+  if (setsockopt(master_socket_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (const void *)&opt, sizeof(opt)) == -1)
+  {
+    std::cerr << "setsockopt" << std::endl;
+    return 1;
+  }
+
+  bzero((void *)&server_addr, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = INADDR_ANY;
+  server_addr.sin_port = htons(PORT_NUMBER);
+
+  if (bind(master_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+  {
+    std::cerr << "Cannot bind to port " << PORT_NUMBER << std::endl;
+    return 1;
+  }
+
+  if (listen(master_socket_fd, MAX_CLIENTS) == -1)
+  {
+    std::cerr << "Cannot listen" << std::endl;
+    return 1;
+  }
+
+  std::cout << "Listening socket_fd " << master_socket_fd << " on port " << PORT_NUMBER << "..." << std::endl;
+
+  while (true)
+  {
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    bzero((void *)&client_addr, sizeof(client_addr));
+
+    client_socket_fd = accept(master_socket_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+    
+    if (client_socket_fd == -1)
+    {
+      std::cerr << "Cannot accept connection" << std::endl;
+      continue;
+    }
+    else
+    {
+      std::cout << "Incoming connection from: " << inet_ntoa(client_addr.sin_addr) << " on socket_fd: " << client_socket_fd << std::endl;
+    }
+
+    pthread_create(&thread[client_socket_fd], nullptr, client_thread, reinterpret_cast<void *>(&client_socket_fd));
+  }
+
+    return 0;
 }
