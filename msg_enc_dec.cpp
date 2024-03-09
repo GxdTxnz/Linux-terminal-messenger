@@ -1,129 +1,286 @@
-#include "msg_enc_dec.hpp"
-#include <array>
+#include <vector>
+#include <string>
 #include <iostream>
 
-const size_t MAX_DEST_NAME_LENGTH = 100;
-const size_t MAX_MESSAGE_INFO_LENGTH = 28;
-const size_t DEST_NAME_OFFSET = 0;
-const size_t MESSAGE_INFO_OFFSET = 100;
-const size_t MESSAGE_OFFSET = 128;
 
-/* Функция enc_msg кодирует сообщение в формате, понятном для передачи по сети.
- * Если сообщение адресовано конкретному получателю, оно считается приватным.
- * противном случае сообщение считается публичным.
- */
-
-void enc_msg(const char *input, char *output, size_t io_buffer_length)
+void enc_msg(const char * input, char * output, size_t io_buffer_length)
 {
-  bool is_private = false;
+  bool is_private = 0;
   
-  for (size_t i = 0; i < 100; ++i) // Проверяем, адресовано ли сообщение конкретному получателю.
+  for(size_t i = 0; i < 100; ++i)
   {
-    
     if (input[0] == '@' && input[i] == ':')
     {
-      is_private = true;
+      is_private = 1;
       break;
     }
   }
 
-  if (is_private) // Если сообщение приватное, кодируем его для конкретного получателя.
+  if(is_private)
   {
-   //size_t j = 0;
-    std::string dest_names;
-    
-    for (size_t i = 0; i < io_buffer_length; ++i) // Извлекаем имена получателей из входной строки
+    size_t i = 0;
+    size_t j = 0;
+
+    bool name_end_flag = 0;
+    bool name_start_flag = 0;
+    bool at_last_one_name_exist = 0;
+
+    while(input[i] != ':')
     {
-      if (input[i] == ':') break;
-      
-      if (isalnum(input[i]) || input[i] == '@')
+      if (((input[i] >= '0' && input[i] <= '9') || (input[i] >= 'A' && input[i] <= 'Z') || (input[i] >= 'a' && input[i] <= 'z')) && !name_end_flag)
       {
-        dest_names += input[i];
+        if (name_start_flag && at_last_one_name_exist)
+        {
+          output[j] = ',';
+          ++j;
+        }
+      output[j] = input[i];
+      ++j;
+
+      name_start_flag = 0;
+      at_last_one_name_exist = 1;
+
+      } 
+      
+      else if (input[i] == '@') 
+      {
+        name_end_flag = 0;
+        name_start_flag = 1;
+      } 
+      else 
+      {
+        name_end_flag = 1;
+      }
+      ++i;
+    }
+
+    for (; j < 100;)
+    {
+      output[j] = 0x00;
+      ++j;
+    }
+
+    ++i;
+    
+    while (input[i] == ' ')
+    {
+      ++i;
+    }
+    
+    if (at_last_one_name_exist)
+    {
+      for (auto c: "Private")
+      {
+        output[j] = c;
+        ++j;
+      }
+      
+      for (; j < 128;)
+      {
+        output[j] = 0x00;
+        ++j;
+      }
+    } 
+
+    else 
+    {
+      for (auto c: "Public")
+      {
+        output[j] = c;
+        ++j;
+      }
+      
+      for (; j < 128;)
+      {
+        output[j] = 0x00;
+        ++j;
       }
     }
     
-    // Ограничиваем длину имен получателей и копируем в выходной буфер
-    dest_names.resize(MAX_DEST_NAME_LENGTH, '\0');
-    std::copy(dest_names.begin(), dest_names.end(), output);
-
-    // Определяем тип сообщения (приватное или публичное) и копируем в выходной буфер
-    std::string msg_info = (dest_names.empty()) ? "Public" : "Private";
-    msg_info.resize(MAX_MESSAGE_INFO_LENGTH, '\0');
-    std::copy(msg_info.begin(), msg_info.end(), output + MESSAGE_INFO_OFFSET);
-
-    // Копируем само сообщение в выходной буфер, с учётом смещения
-    size_t pos = io_buffer_length;
-    
-    for (size_t i = MESSAGE_OFFSET; i < io_buffer_length; ++i) 
+    for (j = 128; j < io_buffer_length; ++i)
     {
-      if (input[i - MESSAGE_OFFSET] == '\0')
+      if (input[i] == 0x00)
       {
-        pos = i;
         break;
       }
-      output[i] = input[i - MESSAGE_OFFSET];
+      output[j] = input[i];
+      ++j;
     }
-    std::fill(output + pos, output + io_buffer_length, '\0'); // Заполняем оставшуюся часть выходного буфера нулями
-  }
-  
-  else // Если сообщение публичное, кодируем его для всех получателей
-  {
-    std::string msg_info = "Public"; // Определяем тип сообщения (публичное) и копируем в выходной буфер
-    msg_info.resize(MAX_MESSAGE_INFO_LENGTH, '\0');
-    std::copy(msg_info.begin(), msg_info.end(), output + MESSAGE_INFO_OFFSET);
-    std::copy(input, input + io_buffer_length, output + MESSAGE_OFFSET); // Копируем само сообщение в выходной буфер, с учётом смещения
-    std::fill(output + io_buffer_length, output + io_buffer_length, '\0'); // Заполняем оставшуюся часть выходного буфера нулями
-  }
-}
 
-// Функция create_enc_msg создаёт закодированное сообщение с указанным адресатом, типом сообщения и содержанием
-void create_enc_msg(const char *dest_name, const char *msg_info, const std::string &msg, size_t io_buffer_length, char *output) 
-{
-  std::string dest_names(dest_name); // Копируем имя адресата в выходной буфер с ограничением максимальной длины
-  dest_names.resize(MAX_DEST_NAME_LENGTH, '\0');
-  std::copy(dest_names.begin(), dest_names.end(), output);
-
-  // Копируем информацию о сообщении (тип) в выходной буфер.
-  std::string info(msg_info);
-  info.resize(MAX_MESSAGE_INFO_LENGTH, '\0');
-  std::copy(info.begin(), info.end(), output + MESSAGE_INFO_OFFSET);
-
-  std::copy(msg.begin(), msg.end(), output + MESSAGE_OFFSET);  // Копируем содержимое сообщения в выходной буфер.
-  std::fill(output + MESSAGE_OFFSET + msg.size(), output + io_buffer_length, '\0'); // Заполняем оставшуюся часть выходного буфера нулями.
-}
-
-// Функция dec_msg декодирует сообщение из переданного закодированного буфера.
-void dec_msg(const char *encd_msg, size_t io_buffer_length, std::vector<std::string> &dest_names, std::string &msg_info, std::string &msg)
-{
-  size_t pos = 0;
-  
-  while (pos < MAX_DEST_NAME_LENGTH && encd_msg[pos] != '\0') // Извлекаем имена получателей из закодированного сообщения.
-  {
-    std::string name;
-    
-    while (pos < MAX_DEST_NAME_LENGTH && encd_msg[pos] != ',' && encd_msg[pos] != '\0') 
+    for (; j < io_buffer_length;)
     {
-      name += encd_msg[pos];
-      ++pos;
+      output[j] = 0x00;
+      ++j;
     }
-    dest_names.push_back(name);
-    
-    if (encd_msg[pos] == ',') ++pos;
   }
 
-  msg_info = std::string(encd_msg + MESSAGE_INFO_OFFSET, MAX_MESSAGE_INFO_LENGTH); // Извлекаем информацию о типе сообщения
-  msg = std::string(encd_msg + MESSAGE_OFFSET, io_buffer_length - MESSAGE_OFFSET); // Извлекаем содержимое сообщения
+
+
+  if (!is_private)
+  {
+    size_t j = 100;
+    
+    for (auto c: "Public")
+    {
+      output[j] = c;
+      ++j;
+    }
+    
+    for (; j < 128;)
+    {
+      output[j] = 0x00;
+      ++j;
+    }
+    
+    j = 128;
+    
+    for (size_t i = 0; i < io_buffer_length; ++i)
+    {
+      output[j] = input[i];
+      ++j;
+    }
+  }
 }
 
-// Функция print_enc_msg выводит закодированное сообщение в консоль
-void print_enc_msg(const char *encd_msg, size_t io_buffer_length) 
+
+void create_enc_msg(const char * dest_name, const char * message_info, const std::string& message, size_t io_buffer_length, char * output)
 {
+  size_t j = 0;
   
-  for (size_t i = 0; i < io_buffer_length; ++i) 
+  for (size_t i = 0; dest_name[i] != 0; ++i)
   {
-    std::cout << ((encd_msg[i] == '\0') ? '.' : encd_msg[i]);
+    output[j] = dest_name[i];
+    ++j;
+  }
+
+  for (; j < 100;)
+  {
+    output[j] = 0x00;
+    ++j;
+  }
+
+  for (size_t i = 0; message_info[i] != 0; ++i)
+  {
+    output[j] = message_info[i];
+    ++j;
+  }
+
+  for (; j < 128;)
+  {
+    output[j] = 0x00;
+    ++j;
+  }
+
+  for (auto& c: message)
+  {
+    output[j] = c;
+    ++j;
   }
   
+  for (; j < io_buffer_length;)
+  {
+    output[j] = 0x00;
+    ++j;
+  }
+}
+
+
+void dec_msg(const char * encoded_message, size_t io_buffer_length, std::vector<std::string>& dest_names, std::string& message_info, std::string&  message)
+{
+  size_t name_char_count = 0;
+  size_t name_char_firs_pos = 0;
+  bool new_name_flag = 0;
+
+  for (size_t i = 0; i < 100; ++i)
+  {
+    if (encoded_message[0] == 0x00)
+    {
+      break;
+    }
+
+    if ((encoded_message[i] == ',') || (encoded_message[i] == 0x00))
+    {
+      if (new_name_flag)
+      {
+        name_char_firs_pos += name_char_count + new_name_flag;
+      }
+      name_char_count = i - name_char_firs_pos;
+
+      dest_names.push_back(std::string(encoded_message + name_char_firs_pos, name_char_count));
+
+      if (encoded_message[i] == 0x00)
+      {
+        break;
+      }
+
+      if (encoded_message[i] == ',')
+      {
+        new_name_flag = 1;
+        continue;
+      }
+    }
+  }
+
+  name_char_count = 0;
+  
+  for (size_t i = 100; i < 128; ++i)
+  {
+    if (encoded_message[100] == 0x00)
+    {
+      break;
+    }
+
+    if (encoded_message[i] == 0x00)
+    {
+      name_char_count = i - 100;
+
+      message_info = std::string(encoded_message + 100, name_char_count);
+
+      if (encoded_message[i] == 0x00)
+      {
+        break;
+      }
+    }
+  }
+
+  name_char_count = 0;
+  for (size_t i = 128; i < io_buffer_length; ++i)
+  {
+    if (encoded_message[128] == 0x00)
+    {
+      break;
+    }
+
+    if (encoded_message[i] == 0x00)
+    {
+      name_char_count = i - 128;
+
+      message = std::string(encoded_message + 128, name_char_count);
+
+      if (encoded_message[i] == 0x00)
+      {
+        break;
+      }
+    }
+  }
+}
+
+void print_enc_msg(const char * encoded_message, size_t io_buffer_length)
+{
+  std::cout << std::endl;
+  
+  for (size_t i = 0; i < io_buffer_length; ++i)
+  {
+    if (encoded_message[i] == 0x00)
+    {
+      std::cout << ".";
+    }
+    
+    else
+    {
+      std::cout << encoded_message[i];
+    }
+  }
   std::cout << std::endl;
 }
 
