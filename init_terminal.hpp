@@ -1,7 +1,8 @@
 #ifndef INIT_TERMINAL_HPP
 #define INIT_TERMINAL_HPP
 
-#include <ostream>
+//#include <ostream>
+#include <iostream>
 #include <sstream>
 #include <string>
 
