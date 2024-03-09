@@ -1,10 +1,11 @@
 #ifndef INIT_TERMINAL_HPP
 #define INIT_TERMINAL_HPP
 
-//#include <ostream>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 // Переменная для включения или отключения цветового вывода в терминале
 extern bool terminal_color;
@@ -179,70 +180,44 @@ namespace terminal
     }
   }
 
-  inline void Draw_Header(int width) 
+  inline std::string Clear_Screen()
   {
-    if (::terminal_color) 
+    if ( ::terminal_color )
     {
-      std::string header = "Terminal linux by GxdTxnz";
-      int header_length = header.length();
-      int left_padding = (width - header_length) / 2;
-
-      std::cout << Cursor_Position(1, left_padding);
-      for (int i = 0; i < header_length; ++i) 
-      {
-      
-        if (i % 2 == 0) 
-        {
-          std::cout << "/";
-        } 
-
-        else 
-        {
-          std::cout << "\\";
-        }
-      }
-    
-      std::cout << std::endl;
-      std::cout << Cursor_Position(2, left_padding);
-      std::cout << header << std::endl;
-      std::cout << Cursor_Position(3, left_padding);
-        
-      for (int i = 0; i < header_length; ++i) 
-      {
-      
-        if (i % 2 == 0) 
-        {
-          std::cout << "\\";
-        }
-      
-        else 
-        {
-          std::cout << "/";
-        }
-      }
+      return "\x1B[2J\x1B[H"; // Очистка экрана и перемещение курсора в верхний левый угол
+    }
+    else
+    {
+      return "";
     }
   }
 
-  inline void Draw_Window_Frame(int width, int height) 
+  inline std::string Center_Text(const std::string& text)
   {
-    
-    if (::terminal_color) 
+    std::ostringstream stringStream;
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    int width = w.ws_col;
+
+    int padding = (width - text.length()) / 2;
+    stringStream << std::string(padding, ' ') << text;
+    return stringStream.str();
+  }
+  
+  
+  inline std::ostream& Print_Centered_Text(std::ostream& stream, const std::string& text)
+  {
+    if (::terminal_color)
     {
-      Draw_Header(width);
-      
-      for (int i = 1; i < height - 1; ++i) 
-      {
-        std::cout << Cursor_Position(i + 1, 1) << "|";
-        std::cout << Cursor_Position(i + 1, width) << "|";
-      }
-      
-      std::cout << Cursor_Position(height, 1);
-      
-      for (int i = 0; i < width; ++i) 
-      {
-        std::cout << "_";
-      }
+      struct winsize w;
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+      int width = w.ws_col;
+
+      int padding = (width - text.length()) / 2;
+      stream << std::string(padding, ' ') << text;
     }
+
+    return stream;
   }
 }
 

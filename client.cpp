@@ -1,4 +1,5 @@
 #include <iostream>
+#include <ostream>
 #include <vector>
 #include <string>
 #include <cerrno>
@@ -61,6 +62,24 @@ int main(int argc, char *argv[])
   pthread_create(&send_thread_id, NULL, sendMessage, (void *) &socket_desc);
   pthread_create(&recv_thread_id, NULL, receiveMessage, (void *) &socket_desc);
 
+  std::cout << terminal::Clear_Screen();
+  
+  std::cout << terminal::Center_Text("  ______                    _             __   ________          __ ") << std::endl;
+  std::cout << terminal::Center_Text(" /_  __/__  _________ ___  (_)___  ____ _/ /  / ____/ /_  ____ _/_/_") << std::endl;
+  std::cout << terminal::Center_Text("  / / / _ \\/ ___/ __ `__ \\/ / __ \\/ __ `/ /  / /   / __ \\/ __ `/ __/") << std::endl;
+  std::cout << terminal::Center_Text(" / / /  __/ /  / / / / / / / / / / /_/ / /  / /___/ / / / /_/ / /_  ") << std::endl;
+  std::cout << terminal::Center_Text("/_/  \\___/_/  /_/ /_/ /_/_/_/ /_/\\__,_/_/   \\____/_/ /_/\\__,_/\\__/  ")<< std::endl;
+  
+  std::cout << std::endl;
+  
+  std::cout << terminal::Center_Text("           __          _____        ________             ") << std::endl;
+  std::cout << terminal::Center_Text("          / /  __ __  / ___/_ _____/ /_  __/_ __ ___  ___") << std::endl;
+  std::cout << terminal::Center_Text("         / _ \\/ // / / (_ /\\ \\ / _  / / /  \\ \\ // _ \\/ _ /") << std::endl;
+  std::cout << terminal::Center_Text("        /_.__/\\_, /  \\___//_\\_\\ _,_/ /_/  /_\\_\\/_//_//__/ ") << std::endl;
+  std::cout << terminal::Center_Text("             /___/                                        ") << std::endl;
+  
+  std::cout << std::endl;
+
   pthread_join(recv_thread_id, NULL);
 
   close(socket_desc);
@@ -73,11 +92,11 @@ void *sendMessage(void *arg)
   char client_name[50];
 
   std::vector<std::string> dest_names;
-  std::string message_info;
-  std::string message;
+  std::string msg_info;
+  std::string msg;
 
   char input[392];
-  char input_encoded[512];
+  char input_encdd[512];
 
   bzero(client_name, sizeof(client_name));
   std::cout << "Write your name: " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_CYAN;
@@ -93,10 +112,10 @@ void *sendMessage(void *arg)
   while (1) 
 	{
     bzero(input, sizeof(input));
-    bzero(input_encoded, sizeof(input_encoded));
+    bzero(input_encdd, sizeof(input_encdd));
     dest_names.clear();
-    message_info.clear();
-    message.clear();
+    msg_info.clear();
+    msg.clear();
 
     std::cin.getline(input, sizeof(input));
 
@@ -125,9 +144,9 @@ void *sendMessage(void *arg)
       continue;
     }
 
-    enc_msg(input, input_encoded, sizeof(input_encoded));
-    send(socket_desc, input_encoded, sizeof(input_encoded), 0);
-    dec_msg(input_encoded, sizeof(input_encoded), dest_names, message_info, message);
+    enc_msg(input, input_encdd, sizeof(input_encdd));
+    send(socket_desc, input_encdd, sizeof(input_encdd), 0);
+    dec_msg(input_encdd, sizeof(input_encdd), dest_names, msg_info, msg);
 
     if (!dest_names.empty()) 
 		{
@@ -142,11 +161,12 @@ void *sendMessage(void *arg)
           std::cout << ", ";
         }
       }
-      std::cout << terminal::RESET_ALL << "<- " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << message << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::RESET_ALL << "<- " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << msg << terminal::RESET_ALL << std::endl;
     } 
-		else 
+		
+    else 
 		{
-      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << message << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << msg << terminal::RESET_ALL << std::endl;
     }
   }
 }
@@ -155,16 +175,16 @@ void *receiveMessage(void *arg)
 {
   char input[512];
   std::vector<std::string> names_from;
-  std::string message_info;
-  std::string message_from;
+  std::string msg_info;
+  std::string msg_from;
 
   int socket_desc = *(int *) arg;
 
   while (1) 
 	{
     names_from.clear();
-    message_info.clear();
-    message_from.clear();
+    msg_info.clear();
+    msg_from.clear();
 
     int rv = recv(socket_desc, input, sizeof(input), 0);
         
@@ -179,19 +199,19 @@ void *receiveMessage(void *arg)
       break;
     }
 
-    dec_msg(input, sizeof(input), names_from, message_info, message_from);
+    dec_msg(input, sizeof(input), names_from, msg_info, msg_from);
 
-    if (!message_info.compare("Private")) 
+    if (!msg_info.compare("Private")) 
 		{
-      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_RED << names_from.front() << terminal::RESET_ALL << "-> " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_GREEN << message_from << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_RED << names_from.front() << terminal::RESET_ALL << "-> " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_GREEN << msg_from << terminal::RESET_ALL << std::endl;
     } 
 		
-		else if (!message_info.compare("Public")) 
+		else if (!msg_info.compare("Public")) 
 		{
-      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_WHITE << names_from.front() << terminal::RESET_ALL << "-> " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_GREEN << message_from << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_WHITE << names_from.front() << terminal::RESET_ALL << "-> " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_GREEN << msg_from << terminal::RESET_ALL << std::endl;
     } 
 		
-		else if (!message_info.compare("Server:online")) 
+		else if (!msg_info.compare("Server:online")) 
 		{
       std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_CYAN;
             
@@ -204,7 +224,7 @@ void *receiveMessage(void *arg)
           std::cout << ", ";
         }
       }
-      std::cout << terminal::RESET_ALL << terminal::TEXT_BOLD << terminal::TEXTCOLOR_WHITE << message_from << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::RESET_ALL << terminal::TEXT_BOLD << terminal::TEXTCOLOR_WHITE << msg_from << terminal::RESET_ALL << std::endl;
     }
   }
 
