@@ -123,17 +123,17 @@ void *sendMessage(void *arg)
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     int erase_line_count = 0;
-        
+
 		if ((input_size % w.ws_col) != 0) 
 		{
       erase_line_count = (int) (input_size / w.ws_col) + 1;
     } 
-		
+
     else 
 		{
       erase_line_count = (int) (input_size / w.ws_col);
     }
-        
+
 		while (erase_line_count-- != 0) 
 		{
       std::cout << terminal::Cursor_Previous_Line() << terminal::Erase_Line();
@@ -151,22 +151,22 @@ void *sendMessage(void *arg)
     if (!dest_names.empty()) 
 		{
       std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_BLUE;
-            
+
 			for (auto it = dest_names.begin(); it != dest_names.end(); ++it) 
 			{
         std::cout << *it;
-                
+
 				if (*it != dest_names.back()) 
 				{
           std::cout << ", ";
         }
       }
-      std::cout << terminal::RESET_ALL << "<- " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << msg << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::RESET_ALL << "<- " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << "Вы -> " << msg << terminal::RESET_ALL << std::endl;
     } 
 		
     else 
 		{
-      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << msg << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << "You -> " << msg << terminal::RESET_ALL << std::endl;
     }
   }
 }
@@ -187,7 +187,7 @@ void *receiveMessage(void *arg)
     msg_from.clear();
 
     int rv = recv(socket_desc, input, sizeof(input), 0);
-        
+
 		if (rv == -1) 
 		{
       std::cerr << "Error reading from server: " << strerror(errno) << std::endl;
@@ -214,11 +214,11 @@ void *receiveMessage(void *arg)
 		else if (!msg_info.compare("Server:online")) 
 		{
       std::cout << terminal::TEXT_BOLD << terminal::TEXTCOLOR_CYAN;
-            
+
 			for (auto it = names_from.begin(); it != names_from.end(); ++it) 
 			{
         std::cout << *it;
-                
+
 				if (*it != names_from.back()) 
 				{
           std::cout << ", ";
