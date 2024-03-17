@@ -161,7 +161,7 @@ void *sendMessage(void *arg)
           std::cout << ", ";
         }
       }
-      std::cout << terminal::RESET_ALL << "<- " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << "Вы -> " << msg << terminal::RESET_ALL << std::endl;
+      std::cout << terminal::RESET_ALL << "<- " << terminal::TEXT_BOLD << terminal::TEXTCOLOR_YELLOW << "You -> " << msg << terminal::RESET_ALL << std::endl;
     } 
 		
     else 
